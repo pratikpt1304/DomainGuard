@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DomainGuard — Sepolia Public Testnet</title>
+
+  <!-- ethers.js v6 from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+
+  <style>
+    /* ── Reset & Base (White & Blue Only) ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #FFFFFF;
+      color: #000000;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    /* ── Headings ─────────────────────────────────────────────────────────── */
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #000000;
+      display: inline-block;
+    }
+    h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 14px;
+      padding-left: 10px;
+      border-left: 4px solid #2563EB;
+      line-height: 1.2;
+    }
+    h3 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 6px;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    .container { max-width: 980px; margin: 0 auto; }
+
+    /* ── Page Header (Light Blue Band with Black Text) ───────────────────── */
+    .header {
+      background: #DBEAFE;
+      border: 1px solid #2563EB;
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .badge {
+      background: #BFDBFE;
+      color: #000000;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1px solid #2563EB;
+      display: inline-block;
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Cards & Panels (White background, 1px Blue Border) ──────────────── */
+    .card {
+      background: #FFFFFF;
+      border: 1px solid #2563EB;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
+      margin-bottom: 18px;
+    }
+
+    /* ── Network Warning Banner ───────────────────────────────────────────── */
+    .network-banner {
+      display: none;
+      background: #DBEAFE;
+      border: 2px solid #2563EB;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      color: #000000;
+      font-weight: 600;
+      font-size: 0.9rem;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    /* ── Form Elements ────────────────────────────────────────────────────── */
+    select, input[type="text"] {
+      width: 100%;
+      background: #FFFFFF;
+      border: 1px solid #2563EB;
+      border-radius: 6px;
+      color: #000000;
+      font-size: 0.9rem;
+      padding: 9px 12px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    select:focus, input[type="text"]:focus {
+      border: 2px solid #2563EB;
+    }
+    ::placeholder {
+      color: #333333;
+      opacity: 1;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 5px;
+    }
+
+    /* ── Buttons (Light blue #BFDBFE, Blue border #2563EB, Black text) ───── */
+    button {
+      cursor: pointer;
+      background: #BFDBFE;
+      color: #000000;
+      border: 1px solid #2563EB;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 8px 16px;
+      transition: background 0.15s ease;
+    }
+    button:hover { background: #93C5FD; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-primary, .btn-success, .btn-danger, .btn-warning {
+      background: #BFDBFE;
+      color: #000000;
+      border: 1px solid #2563EB;
+    }
+    .btn-primary:hover, .btn-success:hover, .btn-danger:hover, .btn-warning:hover {
+      background: #93C5FD;
+    }
+    .btn-sm  { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+    /* ── Domain Info Rows ─────────────────────────────────────────────────── */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #DBEAFE;
+      font-size: 0.88rem;
+      color: #000000;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-weight: 700; color: #000000; }
+    .info-value { color: #000000; word-break: break-all; text-align: right; max-width: 65%; font-weight: 500; }
+
+    .frozen-yes, .frozen-no {
+      background: #DBEAFE;
+      color: #000000;
+      border: 1px solid #2563EB;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      display: inline-block;
+    }
+
+    /* ── Proposals List ───────────────────────────────────────────────────── */
+    .proposal {
+      background: #FFFFFF;
+      border: 1px solid #2563EB;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+      color: #000000;
+    }
+    .proposal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .proposal-id   { font-weight: 700; color: #000000; font-size: 0.95rem; }
+    .proposal-type { color: #000000; font-weight: 700; margin-bottom: 4px; }
+    .proposal-meta { color: #000000; font-size: 0.8rem; margin-bottom: 10px; }
+
+    .approval-bar {
+      height: 9px;
+      border-radius: 999px;
+      background: #DBEAFE;
+      border: 1px solid #2563EB;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .approval-fill {
+      height: 100%;
+      background: #2563EB;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: #DBEAFE;
+      color: #000000;
+      border: 1px solid #2563EB;
+    }
+
+    /* ── Activity Log (Light blue #EFF6FF, Blue border, Black text) ──────── */
+    #log {
+      background: #EFF6FF;
+      border: 1px solid #2563EB;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.82rem;
+      height: 200px;
+      overflow-y: auto;
+      color: #000000;
+      margin-top: 18px;
+      line-height: 1.5;
+    }
+    .log-err {
+      background: #DBEAFE;
+      color: #000000;
+      border-left: 4px solid #2563EB;
+      padding: 3px 6px;
+      margin: 3px 0;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .log-err::before { content: "ERROR: "; font-weight: 700; }
+    .log-ok { color: #000000; }
+    .log-ok::before { content: "OK: "; font-weight: 700; }
+    .log-info { color: #000000; }
+    .log-link { color: #000000; font-weight: 700; text-decoration: underline; margin-left: 4px; }
+
+    /* ── Status Bar ───────────────────────────────────────────────────────── */
+    .status-bar {
+      font-size: 0.82rem;
+      color: #000000;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .status-badge-header {
+      color: #000000;
+      font-weight: 700;
+      background: #DBEAFE;
+      border: 1px solid #2563EB;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    /* ── Pending Tx Overlay ───────────────────────────────────────────────── */
+    #txSpinner {
+      display: none;
+      background: #DBEAFE;
+      border: 1px solid #2563EB;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #000000;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header: Light Blue Band with Black Text -->
+  <div class="header">
+    <div>
+      <h1>🔐 DomainGuard</h1>
+      <span style="font-size:0.85rem;font-weight:600;margin-left:8px;color:#000000;">(Sepolia Testnet Edition)</span>
+    </div>
+    <div class="badge">PS-08: The Rogue Admin</div>
+  </div>
+
+  <!-- Network Warning Banner (shown if connected to wrong chain) -->
+  <div class="network-banner" id="networkBanner">
+    <span id="networkWarningText">⚠️ Not on Sepolia network. Please switch to Sepolia testnet.</span>
+    <button class="btn-sm" onclick="switchToSepolia()">Switch to Sepolia</button>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span id="connStatus" class="status-badge-header">● Wallet: Not connected</span>
+    <span id="networkInfo" class="status-badge-header">Network: -</span>
+    <span id="contractAddrBadge" class="status-badge-header">Contract: -</span>
+  </div>
+
+  <!-- Active Account Info Panel -->
+  <div class="card">
+    <h2>Connected MetaMask Account</h2>
+    <div class="info-row">
+      <span class="info-label">Active Wallet</span>
+      <span class="info-value" id="userAddressLabel">Not connected</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">DomainGuard Admin Status</span>
+      <span class="info-value" id="userAdminStatusLabel">-</span>
+    </div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button id="connectMetaMaskBtn" onclick="connectMetaMask()">🦊 Connect MetaMask</button>
+      <button class="btn-sm" onclick="refreshAll()">↻ Refresh State</button>
+    </div>
+    <div id="txSpinner">⏳ Waiting for block confirmation on Sepolia network...</div>
+  </div>
+
+  <!-- Contract Configuration Card -->
+  <div class="card" id="contractConfigCard">
+    <h2>Sepolia Contract Target</h2>
+    <label for="contractAddressInput">Contract Address (Auto-loaded or paste from deploy-sepolia.js)</label>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="contractAddressInput" placeholder="0x..." style="margin-bottom:0;" />
+      <button onclick="setContractAddress()">Update</button>
+    </div>
+    <p style="font-size:0.75rem;color:#000000;margin-top:6px;">
+      View on Etherscan: <a id="etherscanContractLink" href="#" target="_blank" class="log-link">-</a>
+    </p>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="grid">
+
+    <!-- Left: Domain state + actions -->
+    <div>
+      <!-- Domain State Card -->
+      <div class="card">
+        <h2>Domain Status</h2>
+        <div id="domainInfo">
+          <div style="font-size:0.85rem;color:#000000;">Connect MetaMask to view on-chain state.</div>
+        </div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn-danger btn-sm" id="btnFreeze" onclick="freezeDomain()">🧊 Emergency Freeze</button>
+          <button class="btn-sm" onclick="refreshAll()">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- Propose Action Card -->
+      <div class="card">
+        <h2>Propose Action</h2>
+
+        <label for="actionType">Action Type</label>
+        <select id="actionType" onchange="updateFormFields()">
+          <option value="0">TRANSFER_OWNERSHIP</option>
+          <option value="1">UPDATE_DNS</option>
+          <option value="3">UNFREEZE_DOMAIN</option>
+          <option value="4">REPLACE_ADMIN</option>
+        </select>
+
+        <div id="fieldTargetAddress">
+          <label id="targetLabel" for="targetAddress">New Owner Address</label>
+          <input type="text" id="targetAddress" placeholder="0x..." />
+        </div>
+
+        <div id="fieldNewAdmin" style="display:none;">
+          <label for="newAdminAddress">New Admin Address (replacement key)</label>
+          <input type="text" id="newAdminAddress" placeholder="0x..." />
+        </div>
+
+        <div id="fieldDnsRecord" style="display:none;">
+          <label for="dnsRecord">New DNS Record</label>
+          <input type="text" id="dnsRecord" placeholder="e.g. A 93.184.216.34" />
+        </div>
+
+        <button class="btn-primary" id="btnSubmitProposal" style="margin-top:4px;" onclick="proposeAction()">
+          📝 Submit Proposal
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: Proposals List -->
+    <div>
+      <div class="card">
+        <h2>Proposals Queue</h2>
+        <div id="proposalList">
+          <div style="font-size:0.85rem;color:#000000;">No proposals loaded.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end grid -->
+
+  <!-- Activity Log Box -->
+  <div id="log"><span class="log-info">Activity log will appear here…</span></div>
+
+</div><!-- end container -->
+
+<script>
+// =============================================================================
+// SEPOLIA CONFIGURATION CONSTANT
+// (Paste your contract address here after running scripts/deploy-sepolia.js)
+// =============================================================================
+const DEFAULT_SEPOLIA_CONTRACT_ADDRESS = "0xca7af44C99e90a4FF4E9f2839F603E18B1cB38D7";
+const SEPOLIA_CHAIN_ID = 11155111n; // Sepolia Testnet
+const DOMAIN_NAME = "blockhack.com";
+
+// =============================================================================
+// CONTRACT ABI
+// =============================================================================
+const ABI = [
+  "function getDomain(string) view returns (address owner, string dnsRecord, bool frozen, bool exists)",
+  "function getProposalInfo(uint256) view returns (uint8 actionType, string domainName, address targetAddress, address newAdminAddress, string dnsRecord, address proposer)",
+  "function getProposalStatus(uint256) view returns (uint256 approvalCount, bool executed, bool cancelled, uint256 thresholdReachedAt, bool timeLockPassed)",
+  "function proposalCount() view returns (uint256)",
+  "function getAdmins() view returns (address[5])",
+  "function isAdmin(address) view returns (bool)",
+  "function THRESHOLD() view returns (uint256)",
+  "function FREEZE_THRESHOLD() view returns (uint256)",
+  "function timeLockDelay() view returns (uint256)",
+  "function hasAdminApproved(uint256, address) view returns (bool)",
+  "function proposeAction(uint8,string,address,address,string) returns (uint256)",
+  "function approve(uint256)",
+  "function execute(uint256)",
+  "function cancel(uint256)",
+  "event ActionProposed(uint256 indexed proposalId, uint8 actionType, string domainName, address indexed proposer)",
+  "event ActionApproved(uint256 indexed proposalId, address indexed approver, uint256 newApprovalCount)",
+  "event ActionExecuted(uint256 indexed proposalId, uint8 actionType, string domainName)",
+  "event ActionCancelled(uint256 indexed proposalId, address indexed cancelledBy)",
+];
+
+const ACTION_NAMES = {
+  0: "TRANSFER_OWNERSHIP",
+  1: "UPDATE_DNS",
+  2: "FREEZE_DOMAIN",
+  3: "UNFREEZE_DOMAIN",
+  4: "REPLACE_ADMIN",
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let browserProvider = null;
+let currentSigner = null;
+let contract = null;
+let currentAccount = null;
+let activeContractAddress = DEFAULT_SEPOLIA_CONTRACT_ADDRESS;
+
+// ─── HTML Sanitizer (Security: escapes all on-chain strings) ──────────────────
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ─── Logging Helper with Etherscan Links ──────────────────────────────────────
+function log(msg, type = "info", txHash = null) {
+  const el = document.getElementById("log");
+  const line = document.createElement("div");
+  line.className = "log-" + type;
+  const ts = new Date().toLocaleTimeString();
+
+  line.textContent = `[${ts}] ${msg}`;
+
+  if (txHash) {
+    const link = document.createElement("a");
+    link.href = `https://sepolia.etherscan.io/tx/${txHash}`;
+    link.target = "_blank";
+    link.className = "log-link";
+    link.textContent = "[View on Sepolia Etherscan ↗]";
+    line.appendChild(link);
+  }
+
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setBusy(isBusy, message = "") {
+  const spinner = document.getElementById("txSpinner");
+  if (isBusy) {
+    spinner.style.display = "block";
+    spinner.textContent = `⏳ ${message || "Waiting for block confirmation on Sepolia network..."}`;
+  } else {
+    spinner.style.display = "none";
+  }
+}
+
+// ─── Connect MetaMask ─────────────────────────────────────────────────────────
+async function connectMetaMask() {
+  if (!window.ethereum) {
+    log("MetaMask not found! Please install the MetaMask browser extension.", "err");
+    alert("MetaMask not detected. Please install MetaMask to use Sepolia testnet.");
+    return;
+  }
+
+  try {
+    browserProvider = new ethers.BrowserProvider(window.ethereum);
+    // Request accounts from MetaMask
+    const accounts = await browserProvider.send("eth_requestAccounts", []);
+    if (!accounts || accounts.length === 0) {
+      log("No accounts authorized in MetaMask.", "err");
+      return;
+    }
+
+    currentAccount = accounts[0];
+    currentSigner = await browserProvider.getSigner();
+
+    // Verify network
+    const network = await browserProvider.getNetwork();
+    checkNetwork(network.chainId);
+
+    log(`MetaMask connected: ${currentAccount}`, "ok");
+    document.getElementById("connStatus").textContent = `● Wallet: ${currentAccount.slice(0, 6)}…${currentAccount.slice(-4)}`;
+    document.getElementById("userAddressLabel").textContent = currentAccount;
+
+    // Initialize contract
+    initContract();
+  } catch (err) {
+    log(`Connection rejected or failed: ${extractError(err)}`, "err");
+  }
+}
+
+// ─── Check & Switch Network to Sepolia ────────────────────────────────────────
+function checkNetwork(chainId) {
+  const banner = document.getElementById("networkBanner");
+  const netBadge = document.getElementById("networkInfo");
+  if (chainId === SEPOLIA_CHAIN_ID) {
+    banner.style.display = "none";
+    netBadge.textContent = "Network: Sepolia (11155111)";
+    return true;
+  } else {
+    banner.style.display = "flex";
+    document.getElementById("networkWarningText").textContent =
+      `⚠️ Connected to Chain ID ${chainId}. Please switch MetaMask to Sepolia Testnet (11155111).`;
+    netBadge.textContent = `Network: Wrong (${chainId})`;
+    return false;
+  }
+}
+
+async function switchToSepolia() {
+  if (!window.ethereum) return;
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: "0xaa36a7" }], // 11155111 in hex
+    });
+  } catch (switchError) {
+    // Error code 4902 indicates chain has not been added to MetaMask
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: "0xaa36a7",
+              chainName: "Sepolia",
+              rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
+              nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+              blockExplorerUrls: ["https://sepolia.etherscan.io"],
+            },
+          ],
+        });
+      } catch (addError) {
+        log(`Failed to add Sepolia network: ${extractError(addError)}`, "err");
+      }
+    } else {
+      log(`Failed to switch to Sepolia: ${extractError(switchError)}`, "err");
+    }
+  }
+}
+
+// ─── Initialize Contract Instance ─────────────────────────────────────────────
+async function initContract() {
+  const inputVal = document.getElementById("contractAddressInput").value.trim();
+  if (inputVal && ethers.isAddress(inputVal)) {
+    activeContractAddress = inputVal;
+  }
+
+  if (!ethers.isAddress(activeContractAddress) || activeContractAddress === ethers.ZeroAddress) {
+    log("Sepolia contract address not configured. Paste your deployed address above.", "info");
+    document.getElementById("contractAddrBadge").textContent = "Contract: Not set";
+    return;
+  }
+
+  document.getElementById("contractAddrBadge").textContent =
+    `Contract: ${activeContractAddress.slice(0, 8)}…${activeContractAddress.slice(-4)}`;
+  const linkEl = document.getElementById("etherscanContractLink");
+  linkEl.href = `https://sepolia.etherscan.io/address/${activeContractAddress}`;
+  linkEl.textContent = activeContractAddress;
+
+  if (currentSigner) {
+    contract = new ethers.Contract(activeContractAddress, ABI, currentSigner);
+  } else if (browserProvider) {
+    contract = new ethers.Contract(activeContractAddress, ABI, browserProvider);
+  }
+
+  await refreshAll();
+}
+
+function setContractAddress() {
+  const inputVal = document.getElementById("contractAddressInput").value.trim();
+  if (!ethers.isAddress(inputVal)) {
+    alert("Please enter a valid 42-character Ethereum address (0x...)");
+    return;
+  }
+  activeContractAddress = inputVal;
+  initContract();
+}
+
+// ─── Refresh All Data ─────────────────────────────────────────────────────────
+async function refreshAll() {
+  if (!contract || !browserProvider) return;
+  await Promise.all([updateAdminStatus(), loadDomainInfo(), loadProposals()]);
+}
+
+// ─── Update Current Account Admin Status ──────────────────────────────────────
+async function updateAdminStatus() {
+  if (!contract || !currentAccount) return;
+  try {
+    const isAdm = await contract.isAdmin(currentAccount);
+    const label = document.getElementById("userAdminStatusLabel");
+    if (isAdm) {
+      label.textContent = "✔ Authorized Admin (3-of-5 participant)";
+      label.style.fontWeight = "700";
+    } else {
+      label.textContent = "✘ Not an Admin (read-only observer; actions will revert)";
+      label.style.fontWeight = "600";
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// ─── Load Domain Info ─────────────────────────────────────────────────────────
+async function loadDomainInfo() {
+  if (!contract) return;
+  try {
+    const [owner, dns, frozen, exists] = await contract.getDomain(DOMAIN_NAME);
+    const container = document.getElementById("domainInfo");
+    if (!exists) {
+      container.innerHTML = `<div class="info-row"><span>Domain not registered yet on this contract.</span></div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="info-row">
+        <span class="info-label">Domain</span>
+        <span class="info-value">${escapeHtml(DOMAIN_NAME)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Owner</span>
+        <span class="info-value">${escapeHtml(owner)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">DNS Record</span>
+        <span class="info-value">${escapeHtml(dns) || "(none)"}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Frozen</span>
+        <span class="info-value ${frozen ? "frozen-yes" : "frozen-no"}">
+          ${frozen ? "🔒 YES — locked" : "🔓 No"}
+        </span>
+      </div>
+    `;
+  } catch (err) {
+    log(`Error fetching domain state: ${extractError(err)}`, "err");
+  }
+}
+
+// ─── Load Proposals List ──────────────────────────────────────────────────────
+async function loadProposals() {
+  if (!contract) return;
+  try {
+    const count = await contract.proposalCount();
+    const list = document.getElementById("proposalList");
+    if (count === 0n) {
+      list.innerHTML = `<div style="font-size:0.85rem;color:#000000;">No proposals submitted yet.</div>`;
+      return;
+    }
+
+    const threshold = await contract.THRESHOLD();
+    let html = "";
+    for (let i = count - 1n; i >= 0n; i--) {
+      const info = await contract.getProposalInfo(i);
+      const status = await contract.getProposalStatus(i);
+
+      const approvals = Number(status.approvalCount);
+      const required = Number(info.actionType) === 2 ? 2 : Number(threshold);
+      const fillPct = Math.min(100, (approvals / required) * 100);
+
+      const statusText = status.executed ? "executed"
+                       : status.cancelled ? "cancelled"
+                       : status.timeLockPassed && approvals >= required ? "ready"
+                       : "open";
+
+      const statusLabel = {
+        executed:  '<span class="status-badge status-executed">✔ Executed</span>',
+        cancelled: '<span class="status-badge status-cancelled">✘ Cancelled</span>',
+        ready:     '<span class="status-badge status-ready">⏰ Ready to Execute</span>',
+        open:      '<span class="status-badge status-open">● Open</span>',
+      }[statusText];
+
+      const canApprove = !status.executed && !status.cancelled;
+      // Execute button is visible for open & ready so rejections can be tested
+      const showExecute = !status.executed && !status.cancelled;
+
+      html += `
+        <div class="proposal">
+          <div class="proposal-header">
+            <span class="proposal-id">Proposal #${i}</span>
+            ${statusLabel}
+          </div>
+          <div class="proposal-type">
+            ${escapeHtml(ACTION_NAMES[Number(info.actionType)] || "Unknown")} · ${escapeHtml(info.domainName)}
+          </div>
+          <div class="proposal-meta">
+            Proposer: ${escapeHtml(info.proposer)} |
+            Approvals: ${approvals}/${required}
+            ${status.thresholdReachedAt > 0n && statusText === "open"
+              ? " | ⏳ Time-lock countdown in progress" : ""}
+          </div>
+          <div class="approval-bar">
+            <div class="approval-fill" style="width:${fillPct}%"></div>
+          </div>
+          <div class="btn-row">
+            ${canApprove ? `<button class="btn-primary btn-sm" onclick="approveProposal(${i})">👍 Approve</button>` : ""}
+            ${showExecute ? `<button class="btn-success btn-sm" onclick="executeProposal(${i})">▶ Execute</button>` : ""}
+            ${canApprove ? `<button class="btn-danger btn-sm" onclick="cancelProposal(${i})">✘ Cancel</button>` : ""}
+          </div>
+        </div>
+      `;
+    }
+    list.innerHTML = html;
+  } catch (err) {
+    log(`Error fetching proposals: ${extractError(err)}`, "err");
+  }
+}
+
+// ─── Form Visibility ──────────────────────────────────────────────────────────
+function updateFormFields() {
+  const type = parseInt(document.getElementById("actionType").value);
+  document.getElementById("fieldTargetAddress").style.display = [0, 4].includes(type) ? "" : "none";
+  document.getElementById("fieldNewAdmin").style.display = type === 4 ? "" : "none";
+  document.getElementById("fieldDnsRecord").style.display = type === 1 ? "" : "none";
+
+  const labels = { 0: "New Owner Address", 4: "Old Admin Address (to replace)" };
+  document.getElementById("targetLabel").textContent = labels[type] || "Target Address";
+}
+
+// ─── Propose Action ───────────────────────────────────────────────────────────
+async function proposeAction() {
+  if (!contract) { alert("Please connect MetaMask and configure contract address first."); return; }
+  try {
+    const actionType = parseInt(document.getElementById("actionType").value);
+    const targetAddress = document.getElementById("targetAddress").value.trim() || ethers.ZeroAddress;
+    const newAdmin = document.getElementById("newAdminAddress").value.trim() || ethers.ZeroAddress;
+    const dnsRecord = document.getElementById("dnsRecord").value.trim();
+
+    setBusy(true, "Submitting proposeAction transaction to MetaMask...");
+    log(`Broadcasting proposal: ${ACTION_NAMES[actionType]} on ${DOMAIN_NAME}…`, "info");
+
+    const tx = await contract.proposeAction(actionType, DOMAIN_NAME, targetAddress, newAdmin, dnsRecord);
+    log(`Transaction broadcast! Hash: ${tx.hash}`, "info", tx.hash);
+    setBusy(true, `Waiting for block confirmation for tx ${tx.hash.slice(0, 10)}…`);
+
+    const receipt = await tx.wait();
+    setBusy(false);
+    log(`Proposal created in block ${receipt.blockNumber}!`, "ok", tx.hash);
+    await refreshAll();
+  } catch (err) {
+    setBusy(false);
+    log(`Propose failed: ${extractError(err)}`, "err");
+  }
+}
+
+// ─── Approve Proposal ─────────────────────────────────────────────────────────
+async function approveProposal(id) {
+  if (!contract) return;
+  try {
+    setBusy(true, `Submitting approval for proposal #${id}...`);
+    log(`Approving proposal #${id}…`, "info");
+
+    const tx = await contract.approve(id);
+    log(`Approval broadcast! Hash: ${tx.hash}`, "info", tx.hash);
+    setBusy(true, `Waiting for confirmation for tx ${tx.hash.slice(0, 10)}…`);
+
+    const receipt = await tx.wait();
+    setBusy(false);
+    log(`Proposal #${id} approved in block ${receipt.blockNumber}!`, "ok", tx.hash);
+    await refreshAll();
+  } catch (err) {
+    setBusy(false);
+    log(`Approve #${id} failed: ${extractError(err)}`, "err");
+  }
+}
+
+// ─── Execute Proposal ─────────────────────────────────────────────────────────
+async function executeProposal(id) {
+  if (!contract) return;
+  try {
+    setBusy(true, `Submitting execution for proposal #${id}...`);
+    log(`Executing proposal #${id}…`, "info");
+
+    const tx = await contract.execute(id);
+    log(`Execution broadcast! Hash: ${tx.hash}`, "info", tx.hash);
+    setBusy(true, `Waiting for confirmation for tx ${tx.hash.slice(0, 10)}…`);
+
+    const receipt = await tx.wait();
+    setBusy(false);
+    log(`Proposal #${id} executed in block ${receipt.blockNumber}!`, "ok", tx.hash);
+    await refreshAll();
+  } catch (err) {
+    setBusy(false);
+    log(`Execute #${id} rejected/failed: ${extractError(err)}`, "err");
+  }
+}
+
+// ─── Cancel Proposal ──────────────────────────────────────────────────────────
+async function cancelProposal(id) {
+  if (!contract) return;
+  try {
+    setBusy(true, `Submitting cancellation for proposal #${id}...`);
+    log(`Cancelling proposal #${id}…`, "info");
+
+    const tx = await contract.cancel(id);
+    log(`Cancellation broadcast! Hash: ${tx.hash}`, "info", tx.hash);
+    setBusy(true, `Waiting for confirmation for tx ${tx.hash.slice(0, 10)}…`);
+
+    const receipt = await tx.wait();
+    setBusy(false);
+    log(`Proposal #${id} cancelled in block ${receipt.blockNumber}.`, "ok", tx.hash);
+    await refreshAll();
+  } catch (err) {
+    setBusy(false);
+    log(`Cancel #${id} failed: ${extractError(err)}`, "err");
+  }
+}
+
+// ─── Emergency Freeze ─────────────────────────────────────────────────────────
+async function freezeDomain() {
+  if (!contract) return;
+  try {
+    setBusy(true, `Submitting emergency freeze proposal...`);
+    log(`Proposing FREEZE_DOMAIN for ${DOMAIN_NAME}…`, "info");
+
+    const tx = await contract.proposeAction(2, DOMAIN_NAME, ethers.ZeroAddress, ethers.ZeroAddress, "");
+    log(`Freeze tx broadcast! Hash: ${tx.hash}`, "info", tx.hash);
+    setBusy(true, `Waiting for confirmation...`);
+
+    const receipt = await tx.wait();
+    setBusy(false);
+    log(`Emergency freeze proposal created in block ${receipt.blockNumber}! Approve with 2 admins to activate.`, "ok", tx.hash);
+    await refreshAll();
+  } catch (err) {
+    setBusy(false);
+    log(`Freeze propose failed: ${extractError(err)}`, "err");
+  }
+}
+
+// ─── Error Extractor ──────────────────────────────────────────────────────────
+function extractError(e) {
+  if (!e) return "Unknown error";
+  if (e.code === "ACTION_REJECTED" || e.code === 4001) {
+    return "Transaction cancelled by user in MetaMask.";
+  }
+  if (e.reason) return e.reason;
+  if (e.revert && e.revert.args && e.revert.args[0]) return e.revert.args[0];
+  const match = (e.message || "").match(/reverted with reason string ['"]([^'"]+)['"]/);
+  if (match) return match[1];
+  if (e.shortMessage) return e.shortMessage;
+  return e.message ? e.message.split("\n")[0] : "Transaction reverted on Sepolia.";
+}
+
+// ─── MetaMask Event Listeners ─────────────────────────────────────────────────
+if (window.ethereum) {
+  window.ethereum.on("accountsChanged", (accounts) => {
+    if (accounts.length === 0) {
+      log("MetaMask disconnected.", "info");
+      currentAccount = null;
+      document.getElementById("connStatus").textContent = "● Wallet: Disconnected";
+      document.getElementById("userAddressLabel").textContent = "Not connected";
+      document.getElementById("userAdminStatusLabel").textContent = "-";
+    } else {
+      currentAccount = accounts[0];
+      log(`Switched MetaMask account: ${currentAccount}`, "info");
+      document.getElementById("connStatus").textContent = `● Wallet: ${currentAccount.slice(0, 6)}…${currentAccount.slice(-4)}`;
+      document.getElementById("userAddressLabel").textContent = currentAccount;
+      if (browserProvider) {
+        browserProvider.getSigner().then((s) => {
+          currentSigner = s;
+          initContract();
+        });
+      }
+    }
+  });
+
+  window.ethereum.on("chainChanged", (chainIdHex) => {
+    const chainId = BigInt(chainIdHex);
+    log(`Network changed to Chain ID ${chainId}`, "info");
+    checkNetwork(chainId);
+    if (browserProvider) {
+      browserProvider = new ethers.BrowserProvider(window.ethereum);
+      initContract();
+    }
+  });
+}
+
+// ─── Auto-detect address from deployed-sepolia.json if present ────────────────
+async function checkLocalDeployedFile() {
+  try {
+    const res = await fetch("deployed-sepolia.json");
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.contractAddress) {
+        document.getElementById("contractAddressInput").value = data.contractAddress;
+        activeContractAddress = data.contractAddress;
+        log(`Auto-detected deployed contract: ${data.contractAddress}`, "ok");
+      }
+    }
+  } catch (_) {
+    // Ignore if not found or running on file:// protocol
+  }
+}
+
+// ─── Initialize on Page Load ──────────────────────────────────────────────────
+window.addEventListener("load", async () => {
+  updateFormFields();
+  await checkLocalDeployedFile();
+  if (window.ethereum) {
+    try {
+      browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await browserProvider.listAccounts();
+      if (accounts.length > 0) {
+        connectMetaMask();
+      }
+    } catch (_) {}
+  }
+});
+</script>
+</body>
+</html>

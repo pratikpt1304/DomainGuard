@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DomainGuard — Multi-Sig Domain Registry</title>
+
+  <!--
+    ethers.js v6 loaded from CDN.
+    Connects to LOCAL Hardhat node (localhost:8545).
+    No real money, no mainnet, no seed phrases.
+  -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+
+  <style>
+    /* ── Reset & Base (White & Blue Only) ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #FFFFFF;
+      color: #000000;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    /* ── Headings & Titles (Black text with Blue Accent) ─────────────────── */
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #000000;
+      display: inline-block;
+    }
+    h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 14px;
+      padding-left: 10px;
+      border-left: 4px solid #2563EB;
+      line-height: 1.2;
+    }
+    h3 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 6px;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    .container { max-width: 980px; margin: 0 auto; }
+    
+    /* ── Page Header (Light Blue Band with Black Text) ───────────────────── */
+    .header {
+      background: #DBEAFE;
+      border: 1px solid #2563EB;
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .badge {
+      background: #BFDBFE;
+      color: #000000;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1px solid #2563EB;
+      display: inline-block;
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Cards & Panels (White background, 1px Blue Border) ──────────────── */
+    .card {
+      background: #FFFFFF;
+      border: 1px solid #2563EB;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
+    }
+
+    /* ── Form Elements (White bg, Blue border, Black text) ───────────────── */
+    select, input[type="text"] {
+      width: 100%;
+      background: #FFFFFF;
+      border: 1px solid #2563EB;
+      border-radius: 6px;
+      color: #000000;
+      font-size: 0.9rem;
+      padding: 9px 12px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    select:focus, input[type="text"]:focus {
+      border: 2px solid #2563EB;
+      background: #FFFFFF;
+    }
+    ::placeholder {
+      color: #333333;
+      opacity: 1;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 5px;
+    }
+
+    /* ── Buttons (Light blue bg #BFDBFE, Blue border #2563EB, Black text) ── */
+    button {
+      cursor: pointer;
+      background: #BFDBFE;
+      color: #000000;
+      border: 1px solid #2563EB;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 8px 16px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    button:hover {
+      background: #93C5FD;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Unify all button styles to the requested blue & black appearance */
+    .btn-primary, .btn-success, .btn-danger, .btn-warning {
+      background: #BFDBFE;
+      color: #000000;
+      border: 1px solid #2563EB;
+    }
+    .btn-primary:hover, .btn-success:hover, .btn-danger:hover, .btn-warning:hover {
+      background: #93C5FD;
+    }
+
+    .btn-sm  { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+    /* ── Domain Info Rows ─────────────────────────────────────────────────── */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #DBEAFE;
+      font-size: 0.88rem;
+      color: #000000;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-weight: 700; color: #000000; }
+    .info-value { color: #000000; word-break: break-all; text-align: right; max-width: 65%; font-weight: 500; }
+
+    /* Frozen badges */
+    .frozen-yes, .frozen-no {
+      background: #DBEAFE;
+      color: #000000;
+      border: 1px solid #2563EB;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      display: inline-block;
+    }
+
+    /* ── Proposal List ────────────────────────────────────────────────────── */
+    .proposal {
+      background: #FFFFFF;
+      border: 1px solid #2563EB;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+      color: #000000;
+    }
+    .proposal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .proposal-id   { font-weight: 700; color: #000000; font-size: 0.95rem; }
+    .proposal-type { color: #000000; font-weight: 700; margin-bottom: 4px; }
+    .proposal-meta { color: #000000; font-size: 0.8rem; margin-bottom: 10px; }
+
+    /* Approval Progress Bar (Blue fill on Light Blue track) */
+    .approval-bar {
+      height: 9px;
+      border-radius: 999px;
+      background: #DBEAFE;
+      border: 1px solid #2563EB;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .approval-fill {
+      height: 100%;
+      background: #2563EB;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    /* Status Badges (Light blue bg, Blue border, Black text) */
+    .status-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: #DBEAFE;
+      color: #000000;
+      border: 1px solid #2563EB;
+    }
+    .status-open, .status-executed, .status-cancelled, .status-ready {
+      background: #DBEAFE;
+      color: #000000;
+      border: 1px solid #2563EB;
+    }
+
+    /* ── Activity Log (Light blue #EFF6FF, Blue border, Black text) ──────── */
+    #log {
+      background: #EFF6FF;
+      border: 1px solid #2563EB;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.82rem;
+      height: 180px;
+      overflow-y: auto;
+      color: #000000;
+      margin-top: 18px;
+      line-height: 1.5;
+    }
+    .log-err {
+      background: #DBEAFE;
+      color: #000000;
+      border-left: 4px solid #2563EB;
+      padding: 3px 6px;
+      margin: 3px 0;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .log-err::before {
+      content: "ERROR: ";
+      font-weight: 700;
+      color: #000000;
+    }
+    .log-ok {
+      color: #000000;
+    }
+    .log-ok::before {
+      content: "OK: ";
+      font-weight: 700;
+      color: #000000;
+    }
+    .log-info {
+      color: #000000;
+    }
+
+    /* ── Status Bar ───────────────────────────────────────────────────────── */
+    .status-bar {
+      font-size: 0.82rem;
+      color: #000000;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .status-connected, .status-disconnected {
+      color: #000000;
+      font-weight: 700;
+      background: #DBEAFE;
+      border: 1px solid #2563EB;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    /* ── Admin Selector ───────────────────────────────────────────────────── */
+    .admin-selector {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .admin-btn {
+      font-size: 0.8rem;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #2563EB;
+      background: #FFFFFF;
+      color: #000000;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .admin-btn:hover {
+      background: #DBEAFE;
+    }
+    /* Active Admin Button: Medium blue #93C5FD with thick blue border #2563EB, Black text */
+    .admin-btn.active {
+      background: #93C5FD;
+      color: #000000;
+      border: 2px solid #2563EB;
+      font-weight: 700;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header: Light Blue Band with Black Text -->
+  <div class="header">
+    <div>
+      <h1>🔐 DomainGuard</h1>
+    </div>
+    <div class="badge">PS-08: The Rogue Admin</div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span id="connStatus" class="status-disconnected">● Not connected</span>
+    <span id="networkInfo"></span>
+    <span id="contractAddr"></span>
+  </div>
+
+  <!-- Setup Card (Connect to Contract) -->
+  <div class="card" id="setupCard" style="margin-bottom:18px;">
+    <h2>Connect to Local Hardhat Node</h2>
+    <label for="contractAddressInput">Contract Address</label>
+    <input type="text" id="contractAddressInput"
+           value="0x5FbDB2315678afecb367f032d93F642f64180aa3"
+           placeholder="0x..." />
+    <button class="btn-primary" onclick="connectContract()">Connect</button>
+    <p style="font-size:0.8rem;color:#000000;margin-top:8px;">
+      Hardhat local node on <code>http://127.0.0.1:8545</code>
+    </p>
+  </div>
+
+  <!-- Admin Selector -->
+  <div class="card" style="margin-bottom:18px;">
+    <h2>Active Admin (switch accounts for demo)</h2>
+    <div class="admin-selector" id="adminSelector">
+      <em style="font-size:0.85rem;color:#000000;">Connecting to node…</em>
+    </div>
+    <div style="font-size:0.8rem;color:#000000;font-weight:600;" id="activeAdminLabel"></div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="grid">
+
+    <!-- Left: Domain state + actions -->
+    <div>
+      <!-- Domain State Card -->
+      <div class="card" style="margin-bottom:18px;">
+        <h2>Domain Status</h2>
+        <div id="domainInfo">
+          <div style="font-size:0.85rem;color:#000000;">Connect a contract to see domain info.</div>
+        </div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn-danger btn-sm" onclick="freezeDomain()">🧊 Emergency Freeze</button>
+          <button class="btn-success btn-sm" onclick="refreshAll()">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- Propose Action Card -->
+      <div class="card">
+        <h2>Propose Action</h2>
+
+        <label for="actionType">Action Type</label>
+        <select id="actionType" onchange="updateFormFields()">
+          <option value="0">TRANSFER_OWNERSHIP</option>
+          <option value="1">UPDATE_DNS</option>
+          <option value="3">UNFREEZE_DOMAIN</option>
+          <option value="4">REPLACE_ADMIN</option>
+        </select>
+
+        <div id="fieldTargetAddress">
+          <label id="targetLabel" for="targetAddress">New Owner Address</label>
+          <input type="text" id="targetAddress" placeholder="0x..." />
+        </div>
+
+        <div id="fieldNewAdmin" style="display:none;">
+          <label for="newAdminAddress">New Admin Address (replacement key)</label>
+          <input type="text" id="newAdminAddress" placeholder="0x..." />
+        </div>
+
+        <div id="fieldDnsRecord" style="display:none;">
+          <label for="dnsRecord">New DNS Record</label>
+          <input type="text" id="dnsRecord" placeholder="e.g. A 1.2.3.4" />
+        </div>
+
+        <button class="btn-primary" style="margin-top:4px;" onclick="proposeAction()">
+          📝 Submit Proposal
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: Proposals List -->
+    <div>
+      <div class="card">
+        <h2>Proposals</h2>
+        <div id="proposalList">
+          <div style="font-size:0.85rem;color:#000000;">No proposals yet.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end grid -->
+
+  <!-- Activity Log Box -->
+  <div id="log"><span class="log-info">Activity log will appear here…</span></div>
+
+</div><!-- end container -->
+
+<script>
+// =============================================================================
+// CONTRACT ABI — only the functions we need for the UI (UNTOUCHED)
+// =============================================================================
+const ABI = [
+  // Read
+  "function getDomain(string) view returns (address owner, string dnsRecord, bool frozen, bool exists)",
+  "function getProposalInfo(uint256) view returns (uint8 actionType, string domainName, address targetAddress, address newAdminAddress, string dnsRecord, address proposer)",
+  "function getProposalStatus(uint256) view returns (uint256 approvalCount, bool executed, bool cancelled, uint256 thresholdReachedAt, bool timeLockPassed)",
+  "function proposalCount() view returns (uint256)",
+  "function getAdmins() view returns (address[5])",
+  "function isAdmin(address) view returns (bool)",
+  "function THRESHOLD() view returns (uint256)",
+  "function FREEZE_THRESHOLD() view returns (uint256)",
+  "function timeLockDelay() view returns (uint256)",
+  "function hasAdminApproved(uint256, address) view returns (bool)",
+  // Write
+  "function proposeAction(uint8,string,address,address,string) returns (uint256)",
+  "function approve(uint256)",
+  "function execute(uint256)",
+  "function cancel(uint256)",
+  // Events
+  "event ActionProposed(uint256 indexed proposalId, uint8 actionType, string domainName, address indexed proposer)",
+  "event ActionApproved(uint256 indexed proposalId, address indexed approver, uint256 newApprovalCount)",
+  "event ActionExecuted(uint256 indexed proposalId, uint8 actionType, string domainName)",
+  "event ActionCancelled(uint256 indexed proposalId, address indexed cancelledBy)",
+];
+
+const ACTION_NAMES = {
+  0: "TRANSFER_OWNERSHIP",
+  1: "UPDATE_DNS",
+  2: "FREEZE_DOMAIN",
+  3: "UNFREEZE_DOMAIN",
+  4: "REPLACE_ADMIN",
+};
+
+// ─── State (UNTOUCHED) ────────────────────────────────────────────────────────
+let provider   = null;
+let contract   = null;
+let allSigners = [];   // all 20 Hardhat accounts
+let activeSigner = null;
+let activeIndex  = 0;
+const DOMAIN_NAME = "blockhack.com"; // the domain pre-registered in the constructor
+
+// ─── Logging (UNTOUCHED) ──────────────────────────────────────────────────────
+function log(msg, type = "info") {
+  const el   = document.getElementById("log");
+  const line = document.createElement("div");
+  line.className = "log-" + type;
+  const ts   = new Date().toLocaleTimeString();
+  line.textContent = `[${ts}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ─── Connect to contract (UNTOUCHED) ──────────────────────────────────────────
+async function connectContract() {
+  const addrInput = document.getElementById("contractAddressInput").value.trim();
+  if (!addrInput.match(/^0x[0-9a-fA-F]{40}$/)) {
+    log("Invalid contract address — must start with 0x and be 42 chars.", "err");
+    return;
+  }
+
+  try {
+    // Use the Hardhat node directly (JSON-RPC on port 8545)
+    provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+    await provider.getNetwork(); // confirms node is up
+
+    // Load all 20 Hardhat test accounts as JsonRpcSigner objects
+    const accounts = await provider.listAccounts();
+    allSigners = accounts.map((addr) => provider.getSigner(addr));
+
+    // Default to first signer (admin0 = Alice)
+    activeSigner = await allSigners[0];
+    activeIndex  = 0;
+
+    // Connect contract
+    contract = new ethers.Contract(addrInput, ABI, activeSigner);
+
+    // Update status bar
+    const network = await provider.getNetwork();
+    document.getElementById("connStatus").textContent = "● Connected";
+    document.getElementById("connStatus").className   = "status-connected";
+    document.getElementById("networkInfo").textContent = `Chain: ${network.chainId}`;
+    document.getElementById("contractAddr").textContent = `Contract: ${addrInput.slice(0,10)}…`;
+
+    document.getElementById("setupCard").style.display = "none";
+
+    log("Connected to Hardhat local node at http://127.0.0.1:8545", "ok");
+    log(`Contract: ${addrInput}`, "ok");
+
+    // Build admin selector buttons
+    buildAdminSelector();
+
+    // Load data
+    await refreshAll();
+
+  } catch (err) {
+    log("Connection failed: " + (err.message || err), "err");
+  }
+}
+
+// ─── Build admin selector buttons (UNTOUCHED LOGIC) ───────────────────────────
+async function buildAdminSelector() {
+  const container = document.getElementById("adminSelector");
+  container.innerHTML = "";
+
+  const adminAddrs = await contract.getAdmins();
+  const names      = ["Alice", "Bob", "Carol", "Dave", "Eve"];
+
+  for (let i = 0; i < allSigners.length; i++) {
+    const signer  = await allSigners[i];
+    const addr    = await signer.getAddress();
+    const isAdm   = adminAddrs.map(a => a.toLowerCase()).includes(addr.toLowerCase());
+    const name    = isAdm ? names[adminAddrs.map(a=>a.toLowerCase()).indexOf(addr.toLowerCase())] : `Acc${i}`;
+    const btn     = document.createElement("button");
+    btn.className = "admin-btn" + (i === activeIndex ? " active" : "");
+    btn.textContent = `${name} (${addr.slice(0, 6)}…)`;
+    btn.dataset.index = i;
+    btn.onclick = () => switchAdmin(i);
+    if (!isAdm) btn.style.opacity = "0.5";
+    container.appendChild(btn);
+    if (i >= 7) break; // show only first 8 accounts to keep UI clean
+  }
+
+  updateActiveAdminLabel();
+}
+
+async function switchAdmin(index) {
+  activeIndex  = index;
+  activeSigner = await allSigners[index];
+  contract     = contract.connect(activeSigner);
+
+  // Update button styles
+  document.querySelectorAll(".admin-btn").forEach((b, i) => {
+    b.classList.toggle("active", parseInt(b.dataset.index) === index);
+  });
+  updateActiveAdminLabel();
+  log(`Switched to account ${index}: ${(await activeSigner.getAddress())}`, "info");
+}
+
+async function updateActiveAdminLabel() {
+  if (!activeSigner) return;
+  const addr    = await activeSigner.getAddress();
+  const isAdmin = await contract.isAdmin(addr);
+  document.getElementById("activeAdminLabel").textContent =
+    `Active: ${addr}  |  Admin: ${isAdmin ? "✔ YES" : "✘ NO (will be rejected)"}`;
+}
+
+// ─── Refresh all UI data (UNTOUCHED LOGIC) ────────────────────────────────────
+async function refreshAll() {
+  if (!contract) return;
+  await Promise.all([loadDomainInfo(), loadProposals()]);
+}
+
+// ─── Load domain info (UNTOUCHED LOGIC) ───────────────────────────────────────
+async function loadDomainInfo() {
+  try {
+    const [owner, dns, frozen, exists] = await contract.getDomain(DOMAIN_NAME);
+    const container = document.getElementById("domainInfo");
+    if (!exists) {
+      container.innerHTML = `<div class="info-row"><span>Domain not found.</span></div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="info-row">
+        <span class="info-label">Domain</span>
+        <span class="info-value">${DOMAIN_NAME}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Owner</span>
+        <span class="info-value">${owner.slice(0,10)}…${owner.slice(-6)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">DNS Record</span>
+        <span class="info-value">${dns || "(none)"}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Frozen</span>
+        <span class="info-value ${frozen ? "frozen-yes" : "frozen-no"}">
+          ${frozen ? "🔒 YES — locked" : "🔓 No"}
+        </span>
+      </div>
+    `;
+  } catch (err) {
+    log("Error loading domain: " + err.message, "err");
+  }
+}
+
+// ─── Load proposals (UNTOUCHED LOGIC) ─────────────────────────────────────────
+async function loadProposals() {
+  try {
+    const count = await contract.proposalCount();
+    const list  = document.getElementById("proposalList");
+    if (count === 0n) {
+      list.innerHTML = `<div style="font-size:0.85rem;color:#000000;">No proposals yet.</div>`;
+      return;
+    }
+
+    const threshold = await contract.THRESHOLD();
+    let html = "";
+    for (let i = count - 1n; i >= 0n; i--) {
+      const info   = await contract.getProposalInfo(i);
+      const status = await contract.getProposalStatus(i);
+
+      const approvals  = Number(status.approvalCount);
+      const required   = Number(info.actionType) === 2 ? 2 : Number(threshold);
+      const fillPct    = Math.min(100, (approvals / required) * 100);
+      const statusText = status.executed   ? "executed"
+                       : status.cancelled  ? "cancelled"
+                       : status.timeLockPassed && approvals >= required ? "ready"
+                       : "open";
+      const statusLabel = {
+        executed:  '<span class="status-badge status-executed">✔ Executed</span>',
+        cancelled: '<span class="status-badge status-cancelled">✘ Cancelled</span>',
+        ready:     '<span class="status-badge status-ready">⏰ Ready to Execute</span>',
+        open:      '<span class="status-badge status-open">● Open</span>',
+      }[statusText];
+
+      const canApprove = !status.executed && !status.cancelled;
+      const canExecute = statusText === "ready" || statusText === "open";
+
+      html += `
+        <div class="proposal">
+          <div class="proposal-header">
+            <span class="proposal-id">Proposal #${i}</span>
+            ${statusLabel}
+          </div>
+          <div class="proposal-type">
+            ${ACTION_NAMES[Number(info.actionType)] || "Unknown"} · ${info.domainName}
+          </div>
+          <div class="proposal-meta">
+            Proposer: ${info.proposer.slice(0,8)}… |
+            Approvals: ${approvals}/${required}
+            ${status.thresholdReachedAt > 0n && statusText === "open"
+              ? " | ⏳ Time-lock in progress" : ""}
+          </div>
+          <div class="approval-bar">
+            <div class="approval-fill" style="width:${fillPct}%"></div>
+          </div>
+          <div class="btn-row">
+            ${canApprove ? `<button class="btn-primary btn-sm" onclick="approveProposal(${i})">👍 Approve</button>` : ""}
+            ${statusText === "ready" ? `<button class="btn-success btn-sm" onclick="executeProposal(${i})">▶ Execute</button>` : ""}
+            ${canApprove ? `<button class="btn-danger btn-sm" onclick="cancelProposal(${i})">✘ Cancel</button>` : ""}
+          </div>
+        </div>
+      `;
+    }
+    list.innerHTML = html;
+  } catch (err) {
+    log("Error loading proposals: " + err.message, "err");
+  }
+}
+
+// ─── Form field visibility (UNTOUCHED LOGIC) ──────────────────────────────────
+function updateFormFields() {
+  const type = parseInt(document.getElementById("actionType").value);
+  document.getElementById("fieldTargetAddress").style.display = [0,4].includes(type) ? "" : "none";
+  document.getElementById("fieldNewAdmin").style.display       = type === 4 ? "" : "none";
+  document.getElementById("fieldDnsRecord").style.display      = type === 1 ? "" : "none";
+
+  const labels = { 0: "New Owner Address", 4: "Old Admin Address (to replace)" };
+  document.getElementById("targetLabel").textContent = labels[type] || "Target Address";
+}
+
+// ─── Propose action (UNTOUCHED LOGIC) ─────────────────────────────────────────
+async function proposeAction() {
+  if (!contract) { log("Not connected.", "err"); return; }
+  try {
+    const actionType    = parseInt(document.getElementById("actionType").value);
+    const targetAddress = document.getElementById("targetAddress").value.trim() || ethers.ZeroAddress;
+    const newAdmin      = document.getElementById("newAdminAddress").value.trim() || ethers.ZeroAddress;
+    const dnsRecord     = document.getElementById("dnsRecord").value.trim();
+
+    log(`Submitting PROPOSE: ${ACTION_NAMES[actionType]} on ${DOMAIN_NAME}…`, "info");
+    const tx = await contract.proposeAction(actionType, DOMAIN_NAME, targetAddress, newAdmin, dnsRecord);
+    await tx.wait();
+    log("Proposal created!", "ok");
+    await refreshAll();
+  } catch (err) {
+    log("Propose failed: " + (err.reason || err.message), "err");
+  }
+}
+
+// ─── Approve (UNTOUCHED LOGIC) ───────────────────────────────────────────────
+async function approveProposal(id) {
+  try {
+    log(`Approving proposal #${id}…`, "info");
+    const tx = await contract.approve(id);
+    await tx.wait();
+    log(`Proposal #${id} approved!`, "ok");
+    await refreshAll();
+  } catch (err) {
+    log(`Approve #${id} failed: ` + (err.reason || err.message), "err");
+  }
+}
+
+// ─── Execute (UNTOUCHED LOGIC) ───────────────────────────────────────────────
+async function executeProposal(id) {
+  try {
+    log(`Executing proposal #${id}…`, "info");
+    const tx = await contract.execute(id);
+    await tx.wait();
+    log(`Proposal #${id} executed!`, "ok");
+    await refreshAll();
+  } catch (err) {
+    log(`Execute #${id} failed: ` + (err.reason || err.message), "err");
+  }
+}
+
+// ─── Cancel (UNTOUCHED LOGIC) ────────────────────────────────────────────────
+async function cancelProposal(id) {
+  try {
+    log(`Cancelling proposal #${id}…`, "info");
+    const tx = await contract.cancel(id);
+    await tx.wait();
+    log(`Proposal #${id} cancelled.`, "ok");
+    await refreshAll();
+  } catch (err) {
+    log(`Cancel #${id} failed: ` + (err.reason || err.message), "err");
+  }
+}
+
+// ─── Emergency Freeze shortcut (UNTOUCHED LOGIC) ──────────────────────────────
+async function freezeDomain() {
+  if (!contract) { log("Not connected.", "err"); return; }
+  try {
+    log(`Proposing FREEZE_DOMAIN for ${DOMAIN_NAME}…`, "info");
+    const tx = await contract.proposeAction(2, DOMAIN_NAME, ethers.ZeroAddress, ethers.ZeroAddress, "");
+    await tx.wait();
+    log("Freeze proposal created. Now approve with 2 admins and execute (no time-lock).", "ok");
+    await refreshAll();
+  } catch (err) {
+    log("Freeze propose failed: " + (err.reason || err.message), "err");
+  }
+}
+
+// Initial field state
+updateFormFields();
+
+// Auto-connect to local node on page load
+window.addEventListener("load", () => {
+  connectContract();
+});
+</script>
+</body>
+</html>

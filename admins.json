@@ -1,0 +1,27 @@
+[
+  {
+    "index": 0,
+    "role": "Admin 0 (Alice - Primary Deployer)",
+    "address": "0x1E3fFD853Df655c2e6B7E38C1d74f897c56DaE55"
+  },
+  {
+    "index": 1,
+    "role": "Admin 1 (Bob - Test Rogue Admin)",
+    "address": "0x1F085eFfA034aE362C436Ae36a114690ae6f3eE2"
+  },
+  {
+    "index": 2,
+    "role": "Admin 2 (Carol - Honest Approver)",
+    "address": "0x238e27a8f5aB452e01697B1adbc08C47Dfd52F33"
+  },
+  {
+    "index": 3,
+    "role": "Admin 3 (Dave - Honest Approver)",
+    "address": "0x3bd6EE9C20e272BCeb7B75577Aaa7ABE4aB3F5Cc"
+  },
+  {
+    "index": 4,
+    "role": "Admin 4 (Eve - Lost Key / Replaced)",
+    "address": "0x8ec968d860Fe8BF5DfaA209Ed29f6F83778f1eA7"
+  }
+]

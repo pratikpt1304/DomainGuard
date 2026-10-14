@@ -1,0 +1,13 @@
+# Secret environment variables (NEVER COMMIT)
+.env
+admins.private.json
+
+# Hardhat & build artifacts
+node_modules/
+cache/
+artifacts/
+
+# System and logs
+*.log
+.DS_Store
+.firebase/

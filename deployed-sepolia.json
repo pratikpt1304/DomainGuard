@@ -1,0 +1,10 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "contractAddress": "0xca7af44C99e90a4FF4E9f2839F603E18B1cB38D7",
+  "transactionHash": "0x5a94f7b66a559b6faccd22c3c639bea6079ff6e35f76f0d0bb667c5be7e29475",
+  "blockNumber": 11911408,
+  "domainName": "blockhack.com",
+  "timelockDelaySeconds": 120,
+  "etherscanUrl": "https://sepolia.etherscan.io/address/0xca7af44C99e90a4FF4E9f2839F603E18B1cB38D7"
+}
