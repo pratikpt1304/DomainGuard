@@ -716,6 +716,10 @@ async function loadProposals() {
       // Execute button is visible for open & ready so rejections can be tested
       const showExecute = !status.executed && !status.cancelled;
 
+      if (status.cancelled) {
+        continue; // Hide cancelled proposals to keep queue clean
+      }
+
       html += `
         <div class="proposal">
           <div class="proposal-header">
@@ -742,7 +746,7 @@ async function loadProposals() {
         </div>
       `;
     }
-    list.innerHTML = html;
+    list.innerHTML = html || '<div style="font-size:0.85rem;color:#000000;">No proposals submitted yet.</div>';
   } catch (err) {
     log(`Error fetching proposals: ${extractError(err)}`, "err");
   }
