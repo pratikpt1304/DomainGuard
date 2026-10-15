@@ -761,6 +761,11 @@ function updateFormFields() {
 
   const labels = { 0: "New Owner Address", 4: "Old Admin Address (to replace)" };
   document.getElementById("targetLabel").textContent = labels[type] || "Target Address";
+
+  // Clear inapplicable fields so hidden text doesn't cause ENS errors
+  if (![0, 4].includes(type)) document.getElementById("targetAddress").value = "";
+  if (type !== 4) document.getElementById("newAdminAddress").value = "";
+  if (type !== 1) document.getElementById("dnsRecord").value = "";
 }
 
 // ─── Propose Action ───────────────────────────────────────────────────────────
@@ -768,9 +773,37 @@ async function proposeAction() {
   if (!contract) { alert("Please connect MetaMask and configure contract address first."); return; }
   try {
     const actionType = parseInt(document.getElementById("actionType").value);
-    const targetAddress = document.getElementById("targetAddress").value.trim() || ethers.ZeroAddress;
-    const newAdmin = document.getElementById("newAdminAddress").value.trim() || ethers.ZeroAddress;
-    const dnsRecord = document.getElementById("dnsRecord").value.trim();
+    
+    // Strictly isolate parameters so DNS text is never passed as an address
+    let targetAddress = ethers.ZeroAddress;
+    let newAdmin = ethers.ZeroAddress;
+    let dnsRecord = "";
+
+    if ([0, 4].includes(actionType)) {
+      const inputAddr = document.getElementById("targetAddress").value.trim();
+      if (!ethers.isAddress(inputAddr)) {
+        alert("Please enter a valid Ethereum address (starting with 0x...) for " + (actionType === 0 ? "New Owner!" : "Old Admin!"));
+        return;
+      }
+      targetAddress = inputAddr;
+    }
+
+    if (actionType === 4) {
+      const inputNewAdmin = document.getElementById("newAdminAddress").value.trim();
+      if (!ethers.isAddress(inputNewAdmin)) {
+        alert("Please enter a valid Ethereum address (starting with 0x...) for New Admin!");
+        return;
+      }
+      newAdmin = inputNewAdmin;
+    }
+
+    if (actionType === 1) {
+      dnsRecord = document.getElementById("dnsRecord").value.trim();
+      if (!dnsRecord) {
+        alert("Please enter a valid DNS record (e.g. A 1.1.1.1)!");
+        return;
+      }
+    }
 
     setBusy(true, "Submitting proposeAction transaction to MetaMask...");
     log(`Broadcasting proposal: ${ACTION_NAMES[actionType]} on ${DOMAIN_NAME}…`, "info");
